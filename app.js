@@ -411,7 +411,6 @@ function initOrUpdatePlayer(videoId) {
     }
   }, 8000);
 }
-}
 
 function onPlayerStateChange(event) {
   // YT.PlayerState.ENDED = 0
