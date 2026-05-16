@@ -124,8 +124,7 @@ async function fetchVideos(query) {
     url.searchParams.set('type', 'video');
     url.searchParams.set('maxResults', '20');
     url.searchParams.set('key', state.apiKey);
-    url.searchParams.set('videoCategoryId', '');
-    url.searchParams.set('relevanceLanguage', 'vi');
+    url.searchParams.set('safeSearch', 'none');
 
     const res = await fetch(url);
     const data = await res.json();
