@@ -15,7 +15,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://ludashboard.vercel.app"
+          "value": "frame-ancestors *"
         }
       ]
     }
