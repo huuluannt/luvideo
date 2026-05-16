@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LuVideo — Watch Together</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">▶</span>
+      <span class="logo-text">Lu<em>Video</em></span>
+    </div>
+    <div class="search-wrap">
+      <input class="search-input" id="searchInput" type="text" placeholder="Tìm kiếm video..." autocomplete="off" />
+      <button class="search-btn" id="searchBtn" aria-label="Tìm kiếm">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      </button>
+    </div>
+    <div class="header-right">
+      <button class="autoplay-toggle" id="autoplayToggle" title="Autoplay">
+        <span class="autoplay-icon">⟳</span>
+        <span class="autoplay-label">Autoplay</span>
+        <span class="autoplay-status" id="autoplayStatus">ON</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- API Key Banner -->
+  <div class="api-banner" id="apiBanner">
+    <span class="api-banner-icon">🔑</span>
+    <span>Thêm <strong>YouTube API Key</strong> để bắt đầu tìm kiếm.</span>
+    <button class="api-banner-btn" id="showApiModal">Cài đặt API Key</button>
+    <button class="api-banner-close" id="closeBanner">✕</button>
+  </div>
+
+  <!-- Main Layout -->
+  <main class="main">
+    <!-- Player Section -->
+    <section class="player-section">
+      <div class="player-container" id="playerContainer">
+        <div class="player-placeholder" id="playerPlaceholder">
+          <div class="placeholder-inner">
+            <div class="placeholder-icon">▶</div>
+            <p class="placeholder-title">Chọn video để phát</p>
+            <p class="placeholder-sub">Tìm kiếm và chọn video từ danh sách bên phải</p>
+          </div>
+        </div>
+        <div id="youtubePlayer" style="display:none;"></div>
+      </div>
+      <div class="now-playing" id="nowPlaying" style="display:none;">
+        <div class="now-playing-bar"></div>
+        <div class="now-playing-info">
+          <span class="now-playing-label">ĐANG PHÁT</span>
+          <h2 class="now-playing-title" id="nowPlayingTitle"></h2>
+          <span class="now-playing-channel" id="nowPlayingChannel"></span>
+        </div>
+        <div class="player-controls">
+          <button class="ctrl-btn" id="prevBtn" title="Video trước">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+          </button>
+          <button class="ctrl-btn" id="nextBtn" title="Video tiếp theo">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="m7.58 16.89 8.5-6-8.5-6v12zM16 6h2v12h-2z"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-title" id="sidebarTitle">Hàng đầu hôm nay</span>
+        <span class="result-count" id="resultCount"></span>
+      </div>
+      <div class="video-list" id="videoList">
+        <!-- Skeleton loaders -->
+        <div class="skeleton-list" id="skeletonList">
+          <div class="skeleton-item" style="--d:0"></div>
+          <div class="skeleton-item" style="--d:1"></div>
+          <div class="skeleton-item" style="--d:2"></div>
+          <div class="skeleton-item" style="--d:3"></div>
+          <div class="skeleton-item" style="--d:4"></div>
+        </div>
+        <div class="empty-state" id="emptyState" style="display:none;">
+          <div class="empty-icon">🎬</div>
+          <p>Không tìm thấy video</p>
+          <span>Thử từ khóa khác</span>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- API Key Modal -->
+  <div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="apiModal">
+      <button class="modal-close" id="closeModal">✕</button>
+      <div class="modal-icon">🔑</div>
+      <h3 class="modal-title">YouTube API Key</h3>
+      <p class="modal-desc">Lấy API key miễn phí tại <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>, bật <strong>YouTube Data API v3</strong>.</p>
+      <input class="modal-input" id="apiKeyInput" type="text" placeholder="AIza..." autocomplete="off" />
+      <div class="modal-actions">
+        <button class="modal-save" id="saveApiKey">Lưu & Bắt đầu</button>
+        <button class="modal-demo" id="useDemoKey">Dùng Demo (giới hạn)</button>
+      </div>
+      <p class="modal-note">API key được lưu trong localStorage, chỉ trên trình duyệt của bạn.</p>
+    </div>
+  </div>
+
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <script src="app.js"></script>
+</body>
+</html>
