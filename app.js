@@ -199,8 +199,8 @@ function parseDuration(iso) {
   const h = parseInt(match[1] || 0);
   const m = parseInt(match[2] || 0);
   const s = parseInt(match[3] || 0);
-  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-  return `${m}:${String(s).padStart(2,'0')}`;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 // ==================== RENDER ====================
@@ -263,12 +263,55 @@ function updateActiveCard() {
   }
 }
 
+// ==================== NESTED IFRAME DETECTION ====================
+// YouTube blocks playback when embedded inside another iframe.
+// Detect this and show a fallback open-in-new-tab button instead.
+const isNestedIframe = (() => {
+  try { return window.self !== window.top; } catch { return true; }
+})();
+
+if (isNestedIframe) {
+  // Inject a notice banner at top
+  document.addEventListener('DOMContentLoaded', () => {
+    const notice = document.createElement('div');
+    notice.style.cssText = `
+      position:fixed; top:60px; left:0; right:0; z-index:200;
+      background:rgba(255,95,109,0.12); border-bottom:1px solid rgba(255,95,109,0.3);
+      color:#ff5f6d; font-size:0.8rem; padding:8px 20px;
+      display:flex; align-items:center; gap:10px;
+    `;
+    notice.innerHTML = `
+      <span>⚠️ YouTube không cho phép phát trong iframe lồng nhau.</span>
+      <a id="openFullApp" href="https://luvideo.vercel.app" target="_blank"
+        style="color:#e8ff47;font-weight:600;text-decoration:none;
+               background:rgba(232,255,71,0.1);padding:3px 12px;border-radius:100px;
+               border:1px solid rgba(232,255,71,0.3)">
+        Mở LuVideo ↗
+      </a>
+    `;
+    document.body.appendChild(notice);
+  });
+}
+
 // ==================== PLAYER ====================
 let ytReady = false;
+let ytReadyCallbacks = [];
+let playerInitTimer = null;
 
 window.onYouTubeIframeAPIReady = function () {
   ytReady = true;
+  ytReadyCallbacks.forEach(fn => fn());
+  ytReadyCallbacks = [];
 };
+
+// Fallback: if YT API doesn't load in 5s, reload the script
+setTimeout(() => {
+  if (!ytReady) {
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  }
+}, 5000);
 
 function playVideo(index) {
   if (index < 0 || index >= state.videos.length) return;
@@ -285,39 +328,89 @@ function playVideo(index) {
 
   updateActiveCard();
 
+  // If nested inside another iframe, open in new tab instead
+  if (isNestedIframe) {
+    window.open(`https://www.youtube.com/watch?v=${video.id}`, '_blank');
+    return;
+  }
+
   if (!ytReady) {
-    // Wait for API
-    const wait = setInterval(() => {
-      if (ytReady) {
-        clearInterval(wait);
-        initOrUpdatePlayer(video.id);
-      }
-    }, 100);
+    ytReadyCallbacks.push(() => initOrUpdatePlayer(video.id));
   } else {
     initOrUpdatePlayer(video.id);
   }
 }
 
-function initOrUpdatePlayer(videoId) {
+function destroyPlayer() {
   if (state.player) {
-    state.player.loadVideoById(videoId);
-  } else {
-    state.player = new YT.Player('youtubePlayer', {
-      videoId,
-      height: '100%',
-      width: '100%',
-      playerVars: {
-        autoplay: 1,
-        rel: 0,
-        modestbranding: 1,
-        playsinline: 1,
-      },
-      events: {
-        onReady: e => e.target.playVideo(),
-        onStateChange: onPlayerStateChange,
-      },
-    });
+    try { state.player.destroy(); } catch { }
+    state.player = null;
   }
+  // Reset the div (YouTube replaces it with iframe, need fresh div)
+  const container = document.getElementById('playerContainer');
+  const old = document.getElementById('youtubePlayer');
+  if (old) old.remove();
+  const fresh = document.createElement('div');
+  fresh.id = 'youtubePlayer';
+  container.appendChild(fresh);
+}
+
+function initOrUpdatePlayer(videoId) {
+  clearTimeout(playerInitTimer);
+
+  if (state.player) {
+    try {
+      state.player.loadVideoById(videoId);
+      return;
+    } catch {
+      // Player broken, rebuild it
+      destroyPlayer();
+    }
+  }
+
+  state.player = new YT.Player('youtubePlayer', {
+    videoId,
+    height: '100%',
+    width: '100%',
+    playerVars: {
+      autoplay: 1,
+      rel: 0,
+      modestbranding: 1,
+      playsinline: 1,
+      enablejsapi: 1,
+    },
+    events: {
+      onReady: e => {
+        e.target.playVideo();
+        state.playerReady = true;
+      },
+      onError: e => {
+        console.warn('YT player error:', e.data);
+        // Skip to next video on unplayable error (101, 150)
+        if ([101, 150, 5].includes(e.data) && state.autoplay) {
+          showToast('Video không khả dụng, bỏ qua...', '');
+          setTimeout(() => navigate(1), 1500);
+        }
+      },
+      onStateChange: onPlayerStateChange,
+    },
+  });
+
+  // Safety timeout: if player still black after 8s, rebuild
+  playerInitTimer = setTimeout(() => {
+    if (state.player) {
+      try {
+        const ps = state.player.getPlayerState();
+        // -1 = unstarted (stuck), rebuild
+        if (ps === -1) {
+          destroyPlayer();
+          state.player = null;
+          ytReady && initOrUpdatePlayer(videoId);
+        }
+      } catch { destroyPlayer(); }
+    }
+  }, 8000);
+}
 }
 
 function onPlayerStateChange(event) {
@@ -406,9 +499,9 @@ function formatDate(iso) {
   const days = Math.floor(diff / 86400000);
   if (days < 1) return 'Hôm nay';
   if (days < 7) return `${days} ngày trước`;
-  if (days < 30) return `${Math.floor(days/7)} tuần trước`;
-  if (days < 365) return `${Math.floor(days/30)} tháng trước`;
-  return `${Math.floor(days/365)} năm trước`;
+  if (days < 30) return `${Math.floor(days / 7)} tuần trước`;
+  if (days < 365) return `${Math.floor(days / 30)} tháng trước`;
+  return `${Math.floor(days / 365)} năm trước`;
 }
 
 // ==================== START ====================
